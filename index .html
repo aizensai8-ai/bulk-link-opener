@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Next Link Opener</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+  textarea { width: 100%; height: 200px; padding: 10px; font-size: 14px; box-sizing: border-box; }
+  .row { margin-top: 14px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  button { padding: 12px 22px; font-size: 16px; cursor: pointer; }
+  input[type=number] { width: 80px; padding: 8px; font-size: 15px; }
+  label { font-size: 14px; }
+  #status { margin-top: 12px; font-size: 14px; color: #555; word-break: break-all; }
+  #count { margin-top: 6px; font-size: 13px; color: #888; }
+  body { padding-bottom:1000px;}
+</style>
+</head>
+<body>
+  <h2>Next Link Opener</h2>
+  <p>Paste your links below, one per line, then click to open them one by one in order.</p>
+
+  <textarea id="links" placeholder="https://example.com/pdf1
+https://example.com/pdf2
+https://example.com/pdf3"></textarea>
+
+  <div class="row">
+    <button onclick="next()">Open Next Link</button>
+    <label><input type="checkbox" id="newtab" checked> Open in new tab</label>
+  </div>
+
+  <div class="row">
+    <label>Start from link #
+      <input type="number" id="startNum" min="1" value="1">
+    </label>
+    <button onclick="jumpTo()">Set Start</button>
+    <button onclick="resetIndex()">Reset to 1</button>
+  </div>
+
+  <div id="status"></div>
+  <div id="count"></div>
+
+  <script>
+    let index = 0;       // next link position (0-based)
+    let source = "";
+
+    // ---- Load saved progress when the page opens ----
+    window.onload = function () {
+      const savedLinks = localStorage.getItem('savedLinks');
+      const savedIndex = localStorage.getItem('savedIndex');
+      if (savedLinks !== null) {
+        document.getElementById('links').value = savedLinks;
+        source = savedLinks;
+      }
+      if (savedIndex !== null) {
+        index = parseInt(savedIndex, 10) || 0;
+      }
+      updateCount();
+    };
+
+    function getLinks() {
+      const raw = document.getElementById('links').value;
+      return raw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+    }
+
+    function save() {
+      localStorage.setItem('savedLinks', document.getElementById('links').value);
+      localStorage.setItem('savedIndex', index);
+    }
+
+    function updateCount() {
+      const links = getLinks();
+      if (links.length === 0) { document.getElementById('count').textContent = ''; return; }
+      const showing = (index >= links.length) ? links.length : index + 1;
+      document.getElementById('count').textContent = 'Next click opens link ' + showing + ' of ' + links.length;
+    }
+
+    function next() {
+      const raw = document.getElementById('links').value;
+      const links = getLinks();
+
+      if (links.length === 0) {
+        document.getElementById('status').textContent = 'No links found. Paste some links first.';
+        return;
+      }
+
+      if (source !== raw) { index = 0; source = raw; }   // list changed -> restart
+
+      if (index >= links.length) {
+        index = 0;
+        document.getElementById('status').textContent = 'Reached the end. Starting over from link 1.';
+      }
+
+      const pick = links[index];
+      document.getElementById('status').textContent = 'Opening link ' + (index + 1) + ': ' + pick;
+      index++;
+      save();
+      updateCount();
+
+      if (document.getElementById('newtab').checked) {
+        window.open(pick, '_blank');
+      } else {
+        window.location.href = pick;
+      }
+    }
+
+    function jumpTo() {
+      const links = getLinks();
+      const n = parseInt(document.getElementById('startNum').value, 10);
+      if (!n || n < 1 || n > links.length) {
+        document.getElementById('status').textContent = 'Enter a number between 1 and ' + links.length + '.';
+        return;
+      }
+      index = n - 1;                 // next click will open link n
+      source = document.getElementById('links').value;
+      save();
+      updateCount();
+      document.getElementById('status').textContent = 'Set. Next click opens link ' + n + '.';
+    }
+
+    function resetIndex() {
+      index = 0;
+      source = document.getElementById('links').value;
+      save();
+      updateCount();
+      document.getElementById('status').textContent = 'Reset done. Next click opens link 1.';
+    }
+  </script>
+</body>
+</html>
